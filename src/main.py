@@ -1,0 +1,150 @@
+from typing import Dict, List
+
+import pygame
+import os
+import math
+import pathlib
+
+# pygame setup
+pygame.init()
+SCREEN_WIDTH,SCREEN_HEIGHT=1280,600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Survival Game")
+clock = pygame.time.Clock()
+running = True
+SCROLL=0
+def load_image(dir =[],img_src:str=''):
+    img_path=os.path.join(*dir,img_src)
+    try:
+        load_img=pygame.image.load(img_path).convert_alpha()
+    except pygame as e:
+        print("Error loading image: "+ e)
+        global running
+        running =False
+    else:
+        return load_img
+
+def load_sprite(width:int,height:int)->Dict[str,List[pygame.Surface]]:
+    char_animation=['idle','jump-all','jump','run','attack','run','dead']
+    all_sprites:Dict[str,List[pygame.Surface]]={}
+    for animation in char_animation:
+        sprites=[]
+        sprite=load_image(['assets','character'],f'character-{animation}.png')
+        for i in range(sprite.get_width() // width):
+            surface=pygame.Surface((width,height),pygame.SRCALPHA,32)
+            rect=pygame.Rect(i*width,0,width,height)
+            surface.blit(sprite,(0,0),rect)
+            sprites.append(pygame.transform.scale2x(surface))
+            all_sprites[animation]=sprites
+    
+    return all_sprites
+
+class Charater(pygame.sprite.Sprite):
+    COLOR=(255,0,0)
+    ACCELERATION=3
+    SPRITES=load_sprite(36,64)
+    def __init__(self,x,y,width,height):
+        super().__init__()
+        self.rect=pygame.Rect(x,y,width,height)
+        self.x_vel=0
+        self.y_vel=0
+        self.mask=None
+        # self.x=x
+        # self.y=y
+        # self.width=width
+        # self.height=height
+        self.direction='left'
+        self.animation_count=0
+    def move(self,dx,dy):
+        #print(f'x_vel : {self.x_vel} y_vel {self.y_vel} self.rect.x: {self.rect.x} self.rect.y: {self.rect.y} dx {dx} dy {dy}')
+        self.rect.x+=dx
+        self.rect.y+=dy
+    def move_left(self,vel):
+        self.x_vel= -vel
+        if self.direction!='left':
+            self.direction='left'
+            self.animation_count=0
+    def move_right(self,vel):
+        self.x_vel= vel
+        if self.direction!='right':
+            self.direction='right'
+            self.animation_count=0
+    
+    def loop(self,fps):
+        self.move(self.x_vel,self.y_vel)
+
+    def draw(self,win:pygame.Surface):
+        event = pygame.key.get_pressed()
+        # player.x_vel=0
+        if event[pygame.K_RIGHT]:
+            image=self.SPRITES['run'][math.ceil((self.animation_count // 5)%len(self.SPRITES['run']))]
+            rect=image.get_rect()
+            win.blit(image,(self.rect.x,self.rect.y),rect)
+            self.animation_count+=1
+        elif event[pygame.K_LEFT]:
+            image=pygame.transform.flip(self.SPRITES['run'][math.ceil((self.animation_count // 5)%len(self.SPRITES['run']))],True,False)
+            rect=image.get_rect()
+            win.blit(image,(self.rect.x,self.rect.y),rect)
+            self.animation_count+=1
+        else:
+            image=self.SPRITES['idle'][math.ceil((self.animation_count // 5)%len(self.SPRITES['idle']))]
+            rect=image.get_rect()
+            win.blit(image,(self.rect.x,self.rect.y),rect)
+            self.animation_count+=1
+            
+def handle_move(FPS,player:Charater):
+    event = pygame.key.get_pressed()
+    # player.x_vel=0
+    if event[pygame.K_RIGHT]:       
+        player.move_right(Charater.ACCELERATION)
+        player.loop(FPS)
+    if event[pygame.K_LEFT]:       
+        player.move_left(Charater.ACCELERATION)
+        player.loop(FPS)
+
+
+def get_background(bg_img:pygame.Surface):
+    bg_width=bg_img.get_width()
+    tiles=math.ceil(SCREEN_WIDTH / bg_width ) +1
+    return tiles,bg_width
+    
+def draw(fps,bg_image,player:Charater):
+    global screen,SCROLL
+    tiles,width=get_background(bg_image)
+    for i in range(0,tiles):
+        screen.blit(bg_image,(i*width+SCROLL,0))
+    player.draw(screen)
+    pygame.display.update()
+    # scrolling effect like parallex effect 
+    # SCROLL-=5
+    # if abs(SCROLL) > width:
+    #     SCROLL=0
+
+    
+
+def main():
+    global running
+    player=Charater(100,100,32,32)
+    while running:
+        FPS=60 # limits FPS to 60
+        COLOR=(255,255,255)
+        
+        for event in pygame.event.get():
+
+            if event.type == pygame.QUIT:
+
+                running = False
+
+        # fill the screen with a color to wipe away anything from last frame
+        screen.fill(COLOR)
+        bg_image=load_image(['assets','background'],'Background.png')
+        handle_move(FPS,player)
+        draw(FPS,bg_image,player)
+        
+        clock.tick(FPS)  
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
+
