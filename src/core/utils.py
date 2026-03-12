@@ -4,17 +4,32 @@ from time import time
 from typing import Dict, List, List
 
 import pygame
+import pytmx
+
+# import entities.Enemy 
+# import entities.player 
+
+
+
+
+
 
 # from entities.Enemy import Enemy
 # from entities.player import Character
 
-SCREEN_WIDTH,SCREEN_HEIGHT=1280,600
-
+SCREEN_WIDTH,SCREEN_HEIGHT=800,600
+TILE_SIZE = 16
+COLS, ROWS = 30, 30
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Survival Game")
 clock = pygame.time.Clock()
 running = True
 SCROLL=0
+
+# Example Map Data (0 = empty, 1 = ground)
+# Creating a simple floor on the last row
+game_map = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+game_map[29] = [1 for _ in range(COLS)]
 
 def load_image(dir =[],img_src:str=''):
     img_path=os.path.join(*dir,img_src)
@@ -48,7 +63,8 @@ def load_sprite(width:int,height:int,dir,sprite_name,animations)->Dict[str,List[
 
 
                     
-def handle_move(FPS,player,blocks):
+def handle_move(FPS,player):
+    
     event = pygame.key.get_pressed()
     player.x_vel=0
     if event[pygame.K_RIGHT]:       
@@ -111,17 +127,24 @@ def get_background(bg_img:pygame.Surface):
     tiles=math.ceil(SCREEN_WIDTH / bg_width ) + 1
     return tiles,bg_width
     
-def draw(fps,bg_image,player,blocks,enemies):
+def draw(fps,bg_image,player,tmx_data:pytmx.TiledMap,enemies):
+    from tile.tile import draw_map_relative_to_player
     global screen,SCROLL
     tiles,width=get_background(bg_image)
     screen.blit(bg_image,(-1*width,0))
     for i in range(0,tiles):
         screen.blit(bg_image,(i*width+SCROLL,0))
-    for block in blocks:
-        block.draw(screen)
-    for enemy in enemies:
-        enemy.draw(screen,fps)
+    x_off,y_off,blocks=draw_map_relative_to_player(screen,tmx_data,player)
+    player.x_offset=x_off
+    player.y_offset=y_off
+    player.blocks=blocks
     player.draw(screen,fps)
+    for enemy in enemies:
+        enemy.x_offset=x_off
+        enemy.y_offset=y_off
+        enemy.blocks=blocks
+        enemy.draw(screen,fps)
+    
     health_bar(player)
     print(f"Right Side:{SCREEN_WIDTH-player.rect.x}")
     print(f"Left Side:{player.rect.x}")
@@ -132,5 +155,6 @@ def draw(fps,bg_image,player,blocks,enemies):
         SCROLL-=5
         if abs(SCROLL) > width:
             SCROLL=0
+
 
 
